@@ -85,9 +85,9 @@
 
 1. **Create Dummy Tables + Data**:
    **Eventually when we move this off local emulator to the cloud, this will no longer be needed.**
-   `sh
+   ```sh
     python -m email_marketing.main
-    `
+   ```
 
 - this also creates a docker container so we can run cloud functions (when we eventually use cloud scheduler)
 
@@ -96,7 +96,6 @@
    curl -X POST http://localhost:8080/update_email_marketing
    ```
 3. **Run the program to send the emails**
-
-```sh
-python -m mail_trap.main
-```
+   ```sh
+   python -m mail_trap.main
+   ```
