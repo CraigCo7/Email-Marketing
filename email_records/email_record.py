@@ -2,7 +2,7 @@ from google.cloud import spanner
 import uuid
 
 
-class EmailMarketing:
+class EmailRecord:
     def __init__(self, id, email, first_name, last_name, source_table, source_id, opt_in_status):
         self.id = id
         self.email = email
@@ -15,7 +15,7 @@ class EmailMarketing:
         self.updated_at = spanner.COMMIT_TIMESTAMP
 
     def __repr__(self):
-        return (f"""EmailMarketing(id={self.id}, email={self.email}, first_name={self.first_name}, last_name={self.last_name},
+        return (f"""EmailRecord(id={self.id}, email={self.email}, first_name={self.first_name}, last_name={self.last_name},
                 source_table={self.source_table}, source_id={self.source_id}, opt_in_status={self.opt_in_status},
                 created_at={self.created_at}, updated_at={self.updated_at})""")
 
@@ -49,18 +49,18 @@ def create_table(database):
     # Check if the table already exists
     with database.snapshot() as snapshot:
         results = snapshot.execute_sql(
-            "SELECT table_name FROM information_schema.tables WHERE table_name = 'email_marketing'"
+            "SELECT table_name FROM information_schema.tables WHERE table_name = 'email_record'"
         )
         table_exists = any(row for row in results)
 
     if table_exists:
-        print("EmailMarketing table already exists. Skipping creation.")
+        print("EmailRecord table already exists. Skipping creation.")
         return
 
     # DDL statement to create the table
     ddl_statements = [
         """
-        CREATE TABLE email_marketing (
+        CREATE TABLE email_record (
             id STRING(50) NOT NULL,
             email STRING(1024) NOT NULL,
             first_name STRING(256),
@@ -78,24 +78,24 @@ def create_table(database):
     operation = database.update_ddl(ddl_statements)
     print("Waiting for operation to complete...")
     operation.result()
-    print("EmailMarketing table created successfully.")
+    print("EmailRecord table created successfully.")
 
 # Method to insert a single entry
 
 
-def insert_single_entry(database, email_marketing: EmailMarketing):
+def insert_single_entry(database, email_record: EmailRecord):
     with database.batch() as batch:
         batch.insert(
-            table='email_marketing',
+            table='email_record',
             columns=(
                 'id', 'email', 'first_name', 'last_name', 'source_table', 'source_id', 'opt_in_status',
                 'created_at', 'updated_at'
             ),
             values=[
                 (
-                    email_marketing.id, email_marketing.email, email_marketing.first_name, email_marketing.last_name,
-                    email_marketing.source_table, email_marketing.source_id, email_marketing.opt_in_status,
-                    email_marketing.created_at, email_marketing.updated_at
+                    email_record.id, email_record.email, email_record.first_name, email_record.last_name,
+                    email_record.source_table, email_record.source_id, email_record.opt_in_status,
+                    email_record.created_at, email_record.updated_at
                 ),
             ]
         )
@@ -104,21 +104,21 @@ def insert_single_entry(database, email_marketing: EmailMarketing):
 # Method to insert bulk entries
 
 
-def insert_bulk_entries(database, email_marketing_list):
+def insert_bulk_entries(database, email_record_list):
     with database.batch() as batch:
         batch.insert(
-            table='email_marketing',
+            table='email_record',
             columns=(
                 'id', 'email', 'first_name', 'last_name', 'source_table', 'source_id', 'opt_in_status',
                 'created_at', 'updated_at'
             ),
             values=[
                 (
-                    generate_unique_id(), email_marketing.email, email_marketing.first_name, email_marketing.last_name,
-                    email_marketing.source_table, email_marketing.source_id, email_marketing.opt_in_status,
-                    email_marketing.created_at, email_marketing.updated_at
+                    generate_unique_id(), email_record.email, email_record.first_name, email_record.last_name,
+                    email_record.source_table, email_record.source_id, email_record.opt_in_status,
+                    email_record.created_at, email_record.updated_at
                 )
-                for email_marketing in email_marketing_list
+                for email_record in email_record_list
             ]
         )
     print("Bulk entries inserted successfully.")
@@ -128,10 +128,10 @@ def insert_bulk_entries(database, email_marketing_list):
 
 def get_all_entries(database):
     with database.snapshot() as snapshot:
-        results = snapshot.execute_sql("SELECT * FROM email_marketing")
-        email_marketing_list = []
+        results = snapshot.execute_sql("SELECT * FROM email_record")
+        email_record_list = []
         for row in results:
-            email_marketing = EmailMarketing(
+            email_record = EmailRecord(
                 id=row[0],
                 email=row[1],
                 first_name=row[2],
@@ -140,11 +140,11 @@ def get_all_entries(database):
                 source_id=row[5],
                 opt_in_status=row[6]
             )
-            email_marketing.created_at = row[7]
-            email_marketing.updated_at = row[8]
-            email_marketing_list.append(email_marketing)
+            email_record.created_at = row[7]
+            email_record.updated_at = row[8]
+            email_record_list.append(email_record)
 
-        return email_marketing_list
+        return email_record_list
 
 
 def read_all_entries(database):
@@ -155,7 +155,7 @@ def read_all_entries(database):
 def update_opt_in_status(database, id, new_status):
     with database.batch() as batch:
         batch.update(
-            table='email_marketing',
+            table='email_record',
             columns=('id', 'opt_in_status', 'updated_at'),
             values=[(id, new_status, spanner.COMMIT_TIMESTAMP)]
         )
@@ -165,34 +165,34 @@ def update_opt_in_status(database, id, new_status):
 def truncate_table(database):
     with database.batch() as batch:
         batch.delete(
-            table='email_marketing',
+            table='email_record',
             keyset=spanner.KeySet(all_=True)
         )
-    print("EmailMarketing table emptied successfully.")
+    print("EmailRecord table emptied successfully.")
 
 
 def generate_unique_id():
     return str(uuid.uuid4())
 
 
-def update_email_marketing(database):
+def update_email_record(innosearch_prod_database, innosearch_auth_prod_database):
     existing_emails = set()
 
-    # Fetch existing emails from email_marketing table
-    with database.snapshot() as snapshot:
-        results = snapshot.execute_sql("SELECT email FROM email_marketing")
+    # Fetch existing emails from email_record table
+    with innosearch_prod_database.snapshot() as snapshot:
+        results = snapshot.execute_sql("SELECT email FROM email_record")
         for row in results:
             existing_emails.add(row[0])
 
     new_entries = []
 
     # Traverse user_feedback table
-    with database.snapshot() as snapshot:
+    with innosearch_prod_database.snapshot() as snapshot:
         results = snapshot.execute_sql(
             "SELECT id, email, username, full_name FROM user_feedback WHERE email IS NOT NULL")
         for row in results:
             if row[1] not in existing_emails:
-                new_entry = EmailMarketing(
+                new_entry = EmailRecord(
                     id=row[0],
                     email=row[1],
                     first_name=row[2].split()[0] if row[2] else None,
@@ -205,12 +205,12 @@ def update_email_marketing(database):
                 existing_emails.add(row[1])
 
     # Traverse account table
-    with database.snapshot() as snapshot:
+    with innosearch_auth_prod_database.snapshot() as snapshot:
         results = snapshot.execute_sql(
             "SELECT id, email, account_name FROM account WHERE email IS NOT NULL")
         for row in results:
             if row[1] not in existing_emails:
-                new_entry = EmailMarketing(
+                new_entry = EmailRecord(
                     id=row[0],
                     email=row[1],
                     first_name=row[2].split()[0] if row[2] else None,
@@ -222,10 +222,10 @@ def update_email_marketing(database):
                 new_entries.append(new_entry)
                 existing_emails.add(row[1])
 
-    # Insert new entries into email_marketing table
+    # Insert new entries into email_record table
     if new_entries:
-        insert_bulk_entries(database, new_entries)
-        print(f"{len(new_entries)} new entries added to email_marketing table.")
+        insert_bulk_entries(innosearch_prod_database, new_entries)
+        print(f"{len(new_entries)} new entries added to email_record table.")
     else:
         print("No new entries to add.")
 

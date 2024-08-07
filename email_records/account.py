@@ -98,24 +98,42 @@ def insert_single_entry(database, account: Account):
     print("Single entry inserted successfully.")
 
 
+def entry_exists(database, account_id):
+    with database.snapshot() as snapshot:
+        results = snapshot.execute_sql(
+            "SELECT COUNT(1) FROM account WHERE id = @id",
+            params={"id": account_id},
+            param_types={"id": spanner.param_types.STRING}
+        )
+        for row in results:
+            if row[0] > 0:
+                return True
+    return False
+
+
 def insert_bulk_entries(database, accounts):
     with database.batch() as batch:
-        batch.insert(
-            table='account',
-            columns=(
-                'id', 'email', 'auth_type', 'password', 'account_name', 'status',
-                'more_info', 'created_at', 'updated_at', 'created_by', 'updated_by', 'version'
-            ),
-            values=[
-                (
-                    account.id, account.email, account.auth_type, account.password, account.account_name, account.status,
-                    account.more_info, account.created_at, account.updated_at,
-                    account.created_by, account.updated_by, account.version
+        for account in accounts:
+            if not entry_exists(database, account.id):
+                batch.insert(
+                    table='account',
+                    columns=(
+                        'id', 'email', 'auth_type', 'password', 'account_name', 'status',
+                        'more_info', 'created_at', 'updated_at', 'created_by', 'updated_by', 'version'
+                    ),
+                    values=[
+                        (
+                            account.id, account.email, account.auth_type, account.password, account.account_name, account.status,
+                            account.more_info, account.created_at, account.updated_at,
+                            account.created_by, account.updated_by, account.version
+                        )
+                    ]
                 )
-                for account in accounts
-            ]
-        )
-    print("Bulk entries inserted successfully.")
+            else:
+                print(f"""Did not work: duplicate entry detected for ID {
+                      account.id}.""")
+
+        print("Bulk entries inserted successfully.")
 
 
 def read_all_entries(database):

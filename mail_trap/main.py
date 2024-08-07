@@ -3,9 +3,9 @@ import mailtrap as mt
 import os
 from dotenv import load_dotenv
 from google.cloud import spanner
-from email_marketing.email_marketing import EmailMarketing
+from email_records.email_record import EmailRecord
 
-from email_marketing.email_marketing import get_all_entries as get_all_email_marketing_entries
+from email_records.email_record import get_all_entries as get_all_email_marketing_entries
 load_dotenv()
 
 # Set the Spanner emulator host and disable credentials
@@ -18,13 +18,18 @@ os.environ["SPANNER_EMULATOR_CREDENTIALS"] = os.getenv(
 spanner_client = spanner.Client()
 
 # Define the instance and database
-instance_id = 'test-instance'
-database_id = 'test-database'
+instance_id = os.getenv("INNOSEARCH_SPANNER_INSTANCE_ID")
+innosearch_prod_database_id = os.getenv("INNOSEARCH-PROD_DB_ID")
+innosearch_auth_prod_database_id = os.getenv("INNOSEARCH-AUTH-PROD_DB_ID")
+
 instance = spanner_client.instance(instance_id)
-database = instance.database(database_id)
+
+innosearch_prod_database = instance.database(innosearch_prod_database_id)
+innosearch_auth_prod_database = instance.database(
+    innosearch_auth_prod_database_id)
 
 
-def transactional_stream(email_list: List[EmailMarketing]):
+def transactional_stream(email_list: List[EmailRecord]):
 
     client = mt.MailtrapClient(token=os.getenv("MAILTRAP_API_TOKEN"))
 
@@ -32,8 +37,9 @@ def transactional_stream(email_list: List[EmailMarketing]):
         mail = mt.MailFromTemplate(
             sender=mt.Address(email="craigco@innosearch.ai",
                               name="Mailtrap Test"),
-            to=[mt.Address(email=item.email)],
-            template_uuid="7755f2f7-b76c-47b8-b71a-55316fd6c54a",
+            to=[mt.Address(email=item.email), mt.Address(
+                email="craigco@innosearch.ai")],
+            template_uuid="2a800b7f-ef5d-4d8f-8cf6-c1a119d66c29",
             template_variables={"name": item.first_name},
         )
 
@@ -44,7 +50,7 @@ def transactional_stream(email_list: List[EmailMarketing]):
             print(f"Failed to send email to {item.email}")
 
 
-def bulk_stream(email_list: List[EmailMarketing]):
+def bulk_stream(email_list: List[EmailRecord]):
     # create mail object
     mail = mt.MailFromTemplate(
         sender=mt.Address(email="craigco@innosearch.ai", name="Mailtrap Test"),
@@ -59,5 +65,5 @@ def bulk_stream(email_list: List[EmailMarketing]):
 
 
 if __name__ == '__main__':
-    emails = get_all_email_marketing_entries(database)
+    emails = get_all_email_marketing_entries(innosearch_prod_database)
     transactional_stream(emails)

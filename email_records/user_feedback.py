@@ -86,23 +86,42 @@ def insert_single_entry(database, feedback: UserFeedback):
     print("Single entry inserted successfully.")
 
 
+def entry_exists(database, account_id):
+    with database.snapshot() as snapshot:
+        results = snapshot.execute_sql(
+            "SELECT COUNT(1) FROM user_feedback WHERE id = @id",
+            params={"id": account_id},
+            param_types={"id": spanner.param_types.STRING}
+        )
+        for row in results:
+            if row[0] > 0:
+                return True
+    return False
+
+
 def insert_bulk_entries(database, feedback_list):
     with database.batch() as batch:
-        batch.insert(
-            table='user_feedback',
-            columns=(
-                'id', 'feedback_type', 'creation_time', 'username', 'email', 'full_name',
-                'content', 'user_ip', 'user_agent'
-            ),
-            values=[
-                (
-                    feedback.id, feedback.feedback_type, feedback.creation_time, feedback.username,
-                    feedback.email, feedback.full_name, feedback.content, feedback.user_ip, feedback.user_agent
+        for feedback in feedback_list:
+            if not entry_exists(database, feedback.id):
+                batch.insert(
+                    table='user_feedback',
+                    columns=(
+                        'id', 'feedback_type', 'creation_time', 'username', 'email', 'full_name',
+                        'content', 'user_ip', 'user_agent'
+                    ),
+                    values=[
+                        (
+                            feedback.id, feedback.feedback_type, feedback.creation_time, feedback.username,
+                            feedback.email, feedback.full_name, feedback.content, feedback.user_ip, feedback.user_agent
+                        )
+                        for feedback in feedback_list
+                    ]
                 )
-                for feedback in feedback_list
-            ]
-        )
-    print("Bulk entries inserted successfully.")
+            else:
+                print(f"""Did not work: duplicate entry detected for ID {
+                      feedback.id}.""")
+
+        print("Bulk entries inserted successfully")
 
 
 def read_all_entries(database):

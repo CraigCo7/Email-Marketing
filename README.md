@@ -45,19 +45,28 @@
    python3 -m virtualenv --python=python$VERSION .venv
    ```
 
-5. **Activate environment and install dependency libraries**:
+5. **Install necessary packages**:
+
+   ```sh
+   pip install google-cloud-spanner
+   pip install flask
+   pip install python-dotenv
+   pip install mailtrap
+   ```
+
+6. **Activate environment and install dependency libraries**:
 
    ```sh
    source .venv/bin/activate
    ```
 
-6. **Pull emulator image**:
+7. **Pull emulator image**:
 
    ```sh
    docker pull gcr.io/cloud-spanner-emulator/emulator
    ```
 
-7. **Start Cloud Spanner Emulator**:
+8. **Start Cloud Spanner Emulator**:
    ```sh
    docker run -p 9010:9010 -p 9020:9020 gcr.io/cloud-spanner-emulator/emulator
    ```
@@ -80,20 +89,39 @@
    ```sh
    gcloud emulators spanner start
    ```
+4. **Configure GCloud**:
+
+   ```sh
+   # Configure Cloud Spanner endpoint, project and disable authentication
+    gcloud config configurations create emulator
+    # gcloud config configurations activate emulator
+    gcloud config set auth/disable_credentials true
+    gcloud config set project test-project
+    gcloud config set api_endpoint_overrides/spanner http://localhost:9020/
+   ```
+
+5. **Create a Cloud Spanner Instance & Databases**:
+
+   ```sh
+   gcloud spanner instances create test-instance --config=emulator-config --description=”Test Instance” --nodes=1
+   gcloud spanner databases create innosearch-auth-prod --instance test-instance
+   gcloud spanner databases create innosearch-prod --instance test-instance
+   ```
 
 # Running the program
 
 1. **Create Dummy Tables + Data**:
    **Eventually when we move this off local emulator to the cloud, this will no longer be needed.**
    ```sh
-    python -m email_marketing.main
+    python -m email_records.populate_tables
+    python -m email_records.main
    ```
 
 - this also creates a docker container so we can run cloud functions (when we eventually use cloud scheduler)
 
 2. **Run the cloud function to retrieve new emails**:
    ```sh
-   curl -X POST http://localhost:8080/update_email_marketing
+   curl -X POST http://localhost:8080/update_email_records
    ```
 3. **Run the program to send the emails**
    ```sh
